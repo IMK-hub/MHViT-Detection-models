@@ -7,60 +7,59 @@ import streamlit as st
 from torchvision import transforms
 from model_arch import MHViTModel
 
-# ---------- Page Config ----------
+# ---------- Page Configuration ----------
 st.set_page_config(
-    page_title="DisasterVision AI | Satellite Detection",
+    page_title="DisasterVision AI | Satellite Disaster Detection",
     page_icon="🛰️",
     layout="wide"
 )
 
-# ---------- Custom Blue + White Modern CSS ----------
+# ---------- Blue + White Modern Styling ----------
 st.markdown("""
 <style>
-    /* Global Styles */
+    /* Main Background */
     .stApp {
         background: linear-gradient(180deg, #F0F4F8 0%, #FFFFFF 100%);
-        font-family: 'Inter', sans-serif;
     }
     
-    /* Header Card */
-    .hero-container {
-        background: linear-gradient(135deg, #0A2540 0%, #0066CC 100%);
-        padding: 24px;
-        border-radius: 16px;
+    /* Top Header Container */
+    .header-box {
+        background: linear-gradient(135deg, #0B1E36 0%, #0052CC 100%);
+        padding: 22px 28px;
+        border-radius: 14px;
         color: white;
-        margin-bottom: 25px;
-        box-shadow: 0 8px 24px rgba(0, 102, 204, 0.15);
+        margin-bottom: 22px;
+        box-shadow: 0 4px 18px rgba(0, 82, 204, 0.15);
     }
-    .hero-title {
-        font-size: 32px;
+    .header-title {
+        font-size: 28px;
         font-weight: 800;
         margin: 0;
         color: #FFFFFF;
     }
-    .hero-subtitle {
-        font-size: 15px;
-        color: #B0D4FF;
-        margin-top: 6px;
+    .header-sub {
+        font-size: 14px;
+        color: #B3D4FF;
+        margin-top: 4px;
     }
 
-    /* Result Cards */
-    .metric-card {
+    /* Result Metric Card */
+    .result-card {
         background: #FFFFFF;
+        border: 1px solid #D0DBE5;
+        border-radius: 12px;
         padding: 20px;
-        border-radius: 14px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-        margin-bottom: 15px;
+        box-shadow: 0 4px 12px rgba(11, 30, 54, 0.05);
+        margin-bottom: 16px;
     }
     
+    /* Status Badges */
     .badge {
         display: inline-block;
         padding: 6px 14px;
         border-radius: 20px;
         font-weight: 700;
-        font-size: 18px;
-        text-transform: uppercase;
+        font-size: 16px;
         letter-spacing: 0.5px;
     }
     .badge-flood { background-color: #E0F2FE; color: #0284C7; }
@@ -70,13 +69,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- 1. Device ----------
+# ---------- 1. Device Setup ----------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ---------- 2. Download & Load Model ----------
+# ---------- 2. Download & Load Weights ----------
 MODEL_PATH = "best_mhvit.pth"
 if not os.path.exists(MODEL_PATH):
-    with st.spinner("🔄 Initializing satellite detection model..."):
+    with st.spinner("Downloading model weights..."):
         MODEL_URL = "https://github.com/IMK-hub/MHViT-Detection-models/releases/download/detection-models/best_mhvit.pth"
         urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
@@ -99,15 +98,16 @@ val_tf = transforms.Compose([
     ),
 ])
 
-CLASS_INFO = {
+# Class metadata
+CLASS_METADATA = {
     "Flood": {"icon": "🌊", "color": "flood"},
     "Wildfire": {"icon": "🔥", "color": "wildfire"},
     "Landslide": {"icon": "⛰️", "color": "landslide"},
     "Normal": {"icon": "✅", "color": "normal"}
 }
-CLASS_NAMES = list(CLASS_INFO.keys())
+CLASS_NAMES = list(CLASS_METADATA.keys())
 
-# Helper: Extract Tensor
+# Helper: Tensor Extractor
 def find_tensor(obj):
     if isinstance(obj, torch.Tensor):
         return obj
@@ -135,7 +135,7 @@ def predict(img: Image.Image):
         logits = find_tensor(output)
         
         if logits is None:
-            raise ValueError("Model output did not return any Tensor.")
+            raise ValueError("Model output returned None.")
 
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
@@ -144,7 +144,7 @@ def predict(img: Image.Image):
             if logits.dim() == 1:
                 logits = logits.unsqueeze(0)
 
-        # Confidence percentage (Softmax)
+        # Softmax probabilities
         probs = torch.softmax(logits.float(), dim=-1).cpu().numpy()[0]
 
     pred_idx = int(np.argmax(probs))
@@ -153,60 +153,60 @@ def predict(img: Image.Image):
 
     return label, confidence, probs
 
-# ---------- 5. Header Section ----------
-if os.path.exists("Picture1.png"):
-    st.image("Picture1.png", use_container_width=True)
+# ---------- 5. Header & Banner ----------
+if os.path.exists("banner.jpg"):
+    st.image("banner.jpg", use_container_width=True)
 
 st.markdown("""
-<div class="hero-container">
-    <div class="hero-title">🛰️ DisasterVision AI</div>
-    <div class="hero-subtitle">High-Resolution Satellite Damage & Disaster Assessment System (MHViT Backbone)</div>
+<div class="header-box">
+    <div class="header-title">🛰️ DisasterVision AI</div>
+    <div class="header-sub">High-Resolution Satellite Imagery Disaster Assessment (MHViT Backbone)</div>
 </div>
 """, unsafe_allow_html=True)
 
-# ---------- 6. Two-Column Layout ----------
-col1, col2 = st.columns([1.1, 1], gap="large")
+# ---------- 6. Two-Column Dashboard ----------
+col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
-    st.markdown("### 📥 Upload Satellite Imagery")
+    st.markdown("### 📥 Satellite Tile Upload")
     uploaded_file = st.file_uploader(
-        "Upload high-resolution satellite tile (.png, .jpg, .jpeg)",
+        "Upload a satellite image (.png, .jpg, .jpeg)",
         type=["png", "jpg", "jpeg"]
     )
 
     if uploaded_file is not None:
         img = Image.open(uploaded_file).convert("RGB")
-        st.image(img, caption="Target Region Preview", use_container_width=True)
+        st.image(img, caption="Target Observation Area", use_container_width=True)
 
 with col2:
-    st.markdown("### 📊 Assessment Report")
+    st.markdown("### 📊 Detection Analysis")
     
     if uploaded_file is not None:
-        with st.spinner("🛰️ Scanning satellite imagery through MHViT neural layers..."):
+        with st.spinner("Analyzing neural features..."):
             label, conf, probs = predict(img)
 
-        info = CLASS_INFO.get(label, {"icon": "📌", "color": "normal"})
-        badge_class = f"badge-{info['color']}"
+        info = CLASS_METADATA.get(label, {"icon": "📌", "color": "normal"})
+        badge_style = f"badge-{info['color']}"
 
-        # Result Summary Card
+        # Summary Metric Box
         st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 13px; color: #64748B; margin-bottom: 8px;">DETECTED STATUS</p>
-            <span class="badge {badge_class}">{info['icon']} {label}</span>
-            <h2 style="margin: 12px 0 0 0; color: #0F172A; font-size: 28px;">{conf:.1f}% Confidence</h2>
+        <div class="result-card">
+            <span style="font-size: 13px; color: #64748B; font-weight: 600;">DETECTED EVENT</span><br>
+            <span class="badge {badge_style}" style="margin-top: 8px;">{info['icon']} {label}</span>
+            <h2 style="margin: 10px 0 0 0; color: #0F172A; font-size: 26px;">{conf:.1f}% Confidence</h2>
         </div>
         """, unsafe_allow_html=True)
 
-        # Detailed Probabilities with Progress Bars
-        st.markdown("#### Category Distribution")
+        # Confidence Distribution with Clean Progress Bars
+        st.markdown("#### Probability Breakdown")
         for i, name in enumerate(CLASS_NAMES):
             p = float(probs[i])
-            c_info = CLASS_INFO[name]
+            m = CLASS_METADATA[name]
             
-            c_label, c_val = st.columns([3, 1])
-            c_label.write(f"{c_info['icon']} **{name}**")
-            c_val.write(f"**{p*100:.1f}%**")
+            lbl_col, val_col = st.columns([3, 1])
+            lbl_col.write(f"{m['icon']} **{name}**")
+            val_col.write(f"**{p * 100:.1f}%**")
             st.progress(p)
 
     else:
-        st.info("👈 Please upload a satellite image on the left to generate the real-time AI report.")
+        st.info("👈 Please upload a satellite image on the left to view the AI analysis.")
