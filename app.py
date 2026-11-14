@@ -27,6 +27,36 @@ st.set_page_config(
 # =====================================================
 # 2. CUSTOM CSS
 # =====================================================
+st.markdown("""
+<style>
+
+/* Hide Streamlit Header */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide Streamlit Toolbar */
+[data-testid="stToolbar"] {
+    display: none !important;
+}
+
+/* Hide Deploy Button */
+[data-testid="stAppDeployButton"] {
+    display: none !important;
+}
+
+/* Hide Main Menu */
+#MainMenu {
+    visibility: hidden;
+}
+
+/* Hide Footer */
+footer {
+    visibility: hidden;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
