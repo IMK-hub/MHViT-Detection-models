@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 from torchvision import models
@@ -39,8 +38,6 @@ class MHViTModel(nn.Module):
     def __init__(self, num_classes=4):
         super().__init__()
 
-        # Same ViT-B/16 architecture.
-        # Pretrained weights are loaded from your checkpoint.
         self.vit = models.vit_b_16(weights=None)
 
         embed_dim = self.vit.hidden_dim
@@ -78,6 +75,8 @@ class MHViTModel(nn.Module):
         att_vec = att_map.mean(dim=[2, 3])
 
         out = self.classifier(z + att_vec)
+        return out  # <--- Yeh missing tha, add kar diya gaya hai
 
-        # Alias for backward compatibility
+
+# Alias for backward compatibility
 MHViT = MHViTModel
