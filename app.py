@@ -44,7 +44,8 @@ CLASS_NAMES = ["Flood", "Wildfire", "Landslide", "Normal"]
 def predict(img: Image.Image):
     tensor = val_tf(img).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
-        logits, _ = model(tensor)
+        output = model(tensor)
+        logits = output[0] if isinstance(output, (tuple, list)) else output
         probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
 
     pred_idx = int(np.argmax(probs))
