@@ -7,13 +7,76 @@ import streamlit as st
 from torchvision import transforms
 from model_arch import MHViTModel
 
+# ---------- Page Config ----------
+st.set_page_config(
+    page_title="DisasterVision AI | Satellite Detection",
+    page_icon="🛰️",
+    layout="wide"
+)
+
+# ---------- Custom Blue + White Modern CSS ----------
+st.markdown("""
+<style>
+    /* Global Styles */
+    .stApp {
+        background: linear-gradient(180deg, #F0F4F8 0%, #FFFFFF 100%);
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Header Card */
+    .hero-container {
+        background: linear-gradient(135deg, #0A2540 0%, #0066CC 100%);
+        padding: 24px;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 24px rgba(0, 102, 204, 0.15);
+    }
+    .hero-title {
+        font-size: 32px;
+        font-weight: 800;
+        margin: 0;
+        color: #FFFFFF;
+    }
+    .hero-subtitle {
+        font-size: 15px;
+        color: #B0D4FF;
+        margin-top: 6px;
+    }
+
+    /* Result Cards */
+    .metric-card {
+        background: #FFFFFF;
+        padding: 20px;
+        border-radius: 14px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+        margin-bottom: 15px;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .badge-flood { background-color: #E0F2FE; color: #0284C7; }
+    .badge-wildfire { background-color: #FEE2E2; color: #DC2626; }
+    .badge-landslide { background-color: #FEF3C7; color: #D97706; }
+    .badge-normal { background-color: #DCFCE7; color: #16A34A; }
+</style>
+""", unsafe_allow_html=True)
+
 # ---------- 1. Device ----------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ---------- 2. Download & Load Model ----------
 MODEL_PATH = "best_mhvit.pth"
 if not os.path.exists(MODEL_PATH):
-    with st.spinner("Downloading model, please wait..."):
+    with st.spinner("🔄 Initializing satellite detection model..."):
         MODEL_URL = "https://github.com/IMK-hub/MHViT-Detection-models/releases/download/detection-models/best_mhvit.pth"
         urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
@@ -36,10 +99,15 @@ val_tf = transforms.Compose([
     ),
 ])
 
-# ---------- 4. Class Names ----------
-CLASS_NAMES = ["Flood", "Wildfire", "Landslide", "Normal"]
+CLASS_INFO = {
+    "Flood": {"icon": "🌊", "color": "flood"},
+    "Wildfire": {"icon": "🔥", "color": "wildfire"},
+    "Landslide": {"icon": "⛰️", "color": "landslide"},
+    "Normal": {"icon": "✅", "color": "normal"}
+}
+CLASS_NAMES = list(CLASS_INFO.keys())
 
-# Helper: Kisi bhi output format me se Tensor nikalne ke liye
+# Helper: Extract Tensor
 def find_tensor(obj):
     if isinstance(obj, torch.Tensor):
         return obj
@@ -59,7 +127,7 @@ def find_tensor(obj):
         return find_tensor(obj.logits)
     return None
 
-# ---------- 5. Prediction Function ----------
+# ---------- 4. Prediction Function ----------
 def predict(img: Image.Image):
     tensor = val_tf(img).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
@@ -67,7 +135,7 @@ def predict(img: Image.Image):
         logits = find_tensor(output)
         
         if logits is None:
-            raise ValueError(f"Model output me Tensor nahi mila. Output type: {type(output)}")
+            raise ValueError("Model output did not return any Tensor.")
 
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
@@ -76,36 +144,69 @@ def predict(img: Image.Image):
             if logits.dim() == 1:
                 logits = logits.unsqueeze(0)
 
+        # Confidence percentage (Softmax)
         probs = torch.softmax(logits.float(), dim=-1).cpu().numpy()[0]
 
     pred_idx = int(np.argmax(probs))
     label = CLASS_NAMES[pred_idx] if pred_idx < len(CLASS_NAMES) else f"Class {pred_idx}"
     confidence = float(probs[pred_idx]) * 100
 
-    class_probs = {
-        (CLASS_NAMES[i] if i < len(CLASS_NAMES) else f"Class {i}"): f"{float(p)*100:.1f}%"
-        for i, p in enumerate(probs)
-    }
+    return label, confidence, probs
 
-    return label, confidence, class_probs
+# ---------- 5. Header Section ----------
+if os.path.exists("banner.jpg"):
+    st.image("banner.jpg", use_container_width=True)
 
-# ---------- 6. Streamlit UI ----------
-st.title("🌍 xView‑2 Disaster Classification (MHViT)")
-st.write("Upload a satellite image to classify: Flood, Wildfire, Landslide, or Normal.")
+st.markdown("""
+<div class="hero-container">
+    <div class="hero-title">🛰️ DisasterVision AI</div>
+    <div class="hero-subtitle">High-Resolution Satellite Damage & Disaster Assessment System (MHViT Backbone)</div>
+</div>
+""", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Choose an image...", type=["png", "jpg", "jpeg"])
+# ---------- 6. Two-Column Layout ----------
+col1, col2 = st.columns([1.1, 1], gap="large")
 
-if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+with col1:
+    st.markdown("### 📥 Upload Satellite Imagery")
+    uploaded_file = st.file_uploader(
+        "Upload high-resolution satellite tile (.png, .jpg, .jpeg)",
+        type=["png", "jpg", "jpeg"]
+    )
 
-    try:
-        with st.spinner("Analyzing..."):
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file).convert("RGB")
+        st.image(img, caption="Target Region Preview", use_container_width=True)
+
+with col2:
+    st.markdown("### 📊 Assessment Report")
+    
+    if uploaded_file is not None:
+        with st.spinner("🛰️ Scanning satellite imagery through MHViT neural layers..."):
             label, conf, probs = predict(img)
 
-        st.success(f"**Prediction:** {label} ({conf:.1f}% confidence)")
-        st.write("### Class Probabilities:")
-        st.json(probs)
-    except Exception as e:
-        st.error(f"Prediction Error: {e}")
-        st.exception(e)
+        info = CLASS_INFO.get(label, {"icon": "📌", "color": "normal"})
+        badge_class = f"badge-{info['color']}"
+
+        # Result Summary Card
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 13px; color: #64748B; margin-bottom: 8px;">DETECTED STATUS</p>
+            <span class="badge {badge_class}">{info['icon']} {label}</span>
+            <h2 style="margin: 12px 0 0 0; color: #0F172A; font-size: 28px;">{conf:.1f}% Confidence</h2>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Detailed Probabilities with Progress Bars
+        st.markdown("#### Category Distribution")
+        for i, name in enumerate(CLASS_NAMES):
+            p = float(probs[i])
+            c_info = CLASS_INFO[name]
+            
+            c_label, c_val = st.columns([3, 1])
+            c_label.write(f"{c_info['icon']} **{name}**")
+            c_val.write(f"**{p*100:.1f}%**")
+            st.progress(p)
+
+    else:
+        st.info("👈 Please upload a satellite image on the left to generate the real-time AI report.")
