@@ -154,8 +154,8 @@ def predict(img: Image.Image):
     return label, confidence, probs
 
 # ---------- 5. Header Section ----------
-if os.path.exists("banner.jpg"):
-    st.image("banner.jpg", use_container_width=True)
+if os.path.exists("Picture1.png"):
+    st.image("Picture1.png", use_container_width=True)
 
 st.markdown("""
 <div class="hero-container">
